@@ -1,0 +1,8 @@
+node_modules/
+.env
+work/
+output/
+media/
+assets/music/kids/*.mp3
+assets/music/kids/*.wav
+assets/music/kids/*.m4a

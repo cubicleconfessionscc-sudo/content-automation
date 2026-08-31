@@ -1,0 +1,21 @@
+{
+  "name": "content-automation",
+  "version": "0.1.0",
+  "description": "Auto-generate a narrated video and publish it to YouTube + Instagram",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "auto": "node src/autoRun.js",
+    "batch": "node src/dailyBatch.js",
+    "get-yt-token": "node scripts/getYoutubeRefreshToken.js"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "axios": "^1.7.7",
+    "dotenv": "^16.4.5",
+    "fluent-ffmpeg": "^2.1.3",
+    "googleapis": "^144.0.0",
+    "open": "^10.1.0"
+  }
+}
