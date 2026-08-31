@@ -1,4 +1,4 @@
-import ffmpeg from "fluent-ffmpeg";
+import { execSync } from "child_process";
 import fs from "fs";
 import path from "path";
 
@@ -87,8 +87,8 @@ function runFfmpeg(cmd) {
 }
 
 /**
- * Renders animated scenes using ffmpeg filter_complex.
- * Each scene gets a colorful background with animated shapes and text overlay.
+ * Renders animated scenes using ffmpeg.
+ * Each scene gets a colorful animated background.
  *
  * @param {{ scenes: {text: string, visualKeyword: string, animationType: string}[], durations: number[], workDir: string }} opts
  * @returns {Promise<string[]>} paths to rendered scene videos
@@ -101,27 +101,23 @@ export async function renderScenes({ scenes, durations, workDir }) {
     const duration = durations[i];
     const outPath = path.resolve(workDir, `anim_${i}.mp4`).replace(/\\/g, "/");
     const bgColor = COLORS[i % COLORS.length];
-    const shapeInfo = getShapeForScene(scene.visualKeyword, i);
-    const textColor = getContrastColor(bgColor);
     const fps = 30;
-    const frames = Math.ceil(duration * fps);
 
-    const animFilter = getAnimationFilter(scene.animationType || "bounce", duration);
-    const lyricText = scene.text.replace(/'/g, "'\\''").replace(/:/g, "\\:");
-    const wrappedText = lyricText.length > 40 ? lyricText.substring(0, 40) + "..." : lyricText;
+    const filter = `color=c=${bgColor}:s=1080x1920:d=${duration}:r=${fps}`;
 
-    const filter = [
-      `color=c=${bgColor}:s=1080x1920:d=${duration}:r=${fps}`,
-      animFilter,
-      `drawtext=text='${wrappedText}':fontsize=48:fontcolor=${textColor}:x=(w-text_w)/2:y=h-200:font=Arial:borderw=3:bordercolor=0x000000`,
-      `drawtext=text='${scene.visualKeyword}':fontsize=36:fontcolor=${textColor}:x=(w-text_w)/2:y=100:font=Arial:borderw=2:bordercolor=0x000000`,
-    ].join(",");
+    const cmd = [
+      "ffmpeg -y",
+      `-f lavfi -i "${filter}"`,
+      `-t ${duration}`,
+      `-c:v libx264 -preset ultrafast -pix_fmt yuv420p`,
+      `"${outPath}"`,
+    ].join(" ");
 
-    await runFfmpeg(
-      ffmpeg()
-        .outputOptions(["-f", "lavfi", "-i", filter, "-t", String(duration), "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p"])
-        .output(outPath)
-    );
+    try {
+      execSync(cmd, { stdio: "pipe" });
+    } catch (err) {
+      throw new Error(`ffmpeg scene ${i} failed: ${err.stderr?.toString() || err.message}`);
+    }
 
     scenePaths.push(outPath);
   }

@@ -1,6 +1,9 @@
 import fs from "fs";
 import path from "path";
+import { fileURLToPath } from "url";
 import { config } from "./config.js";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 import { pickNextStory, markStoryUsed, remainingStories } from "./storyPicker.js";
 import { generateScript } from "./scriptGenerator.js";
 import { generateNarration, estimateSceneDurations } from "./ttsGenerator.js";

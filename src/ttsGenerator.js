@@ -18,10 +18,9 @@ export async function generateNarration(fullText, outPath) {
   await tts.setMetadata(VOICE, "audio-24khz-96kbitrate-mono-mp3");
   await tts.toFile(dir, fullText);
 
-  // msedge-tts saves as audio.mp3 inside the directory
   const generated = path.join(dir, "audio.mp3");
-  if (generated !== outPath && fs.existsSync(generated)) {
-    fs.renameSync(generated, outPath);
+  if (fs.existsSync(generated)) {
+    fs.copyFileSync(generated, outPath);
   }
   return outPath;
 }
