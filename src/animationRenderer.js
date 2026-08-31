@@ -8,61 +8,12 @@ const COLORS = [
   "0xF8C471", "0xAED6F1", "0xD7BDE2", "0xA3E4D7", "0xFAD7A0",
 ];
 
-const ANIMAL_SHAPES = {
-  fish: { emoji: "🐟", shape: "circle", color: "0x45B7D1" },
-  cat: { emoji: "🐱", shape: "circle", color: "0xF7DC6F" },
-  dog: { emoji: "🐶", shape: "circle", color: "0xBB8FCE" },
-  bird: { emoji: "🐦", shape: "diamond", color: "0x85C1E9" },
-  butterfly: { emoji: "🦋", shape: "diamond", color: "0xAED6F1" },
-  bee: { emoji: "🐝", shape: "circle", color: "0xF7DC6F" },
-  frog: { emoji: "🐸", shape: "circle", color: "0x82E0AA" },
-  turtle: { emoji: "🐢", shape: "circle", color: "0x82E0AA" },
-  star: { emoji: "⭐", shape: "star", color: "0xF7DC6F" },
-  sun: { emoji: "☀️", shape: "circle", color: "0xF7DC6F" },
-  moon: { emoji: "🌙", shape: "crescent", color: "0xF7DC6F" },
-  heart: { emoji: "❤️", shape: "heart", color: "0xF1948A" },
-  flower: { emoji: "🌸", shape: "circle", color: "0xFAD7A0" },
-  tree: { emoji: "🌳", shape: "triangle", color: "0x82E0AA" },
-  car: { emoji: "🚗", shape: "rectangle", color: "0xF1948A" },
-  ball: { emoji: "⚽", shape: "circle", color: "0xFFFFFF" },
-  balloon: { emoji: "🎈", shape: "circle", color: "0xF1948A" },
-  cloud: { emoji: "☁️", shape: "ellipse", color: "0xFFFFFF" },
-  rain: { emoji: "🌧️", shape: "ellipse", color: "0x85C1E9" },
-  snow: { emoji: "❄️", shape: "star", color: "0xFFFFFF" },
-};
+const SHAPES = ["circle", "square", "triangle", "diamond", "star"];
 
-function getShapeForScene(visualKeyword, index) {
-  const key = visualKeyword.toLowerCase();
-  for (const [animal, info] of Object.entries(ANIMAL_SHAPES)) {
-    if (key.includes(animal)) return info;
-  }
-  return { emoji: null, shape: "circle", color: COLORS[index % COLORS.length] };
-}
-
-function getAnimationFilter(type, duration) {
-  const fps = 30;
-  const frames = Math.ceil(duration * fps);
-  switch (type) {
-    case "bounce":
-      return `zoompan=z='min(zoom+0.001,1.2)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)+sin(on/${fps})*50':d=${frames}:s=1080x1920:fps=${fps}`;
-    case "float":
-      return `zoompan=z='1.05':x='iw/2-(iw/zoom/2)+cos(on/${fps})*30':y='ih/2-(ih/zoom/2)+sin(on/${fps})*20':d=${frames}:s=1080x1920:fps=${fps}`;
-    case "spin":
-      return `zoompan=z='1.1':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=${frames}:s=1080x1920:fps=${fps}`;
-    case "zoom":
-      return `zoompan=z='min(zoom+0.002,1.5)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=${frames}:s=1080x1920:fps=${fps}`;
-    case "wave":
-      return `zoompan=z='1.05':x='iw/2-(iw/zoom/2)+sin(on/${fps})*40':y='ih/2-(ih/zoom/2)':d=${frames}:s=1080x1920:fps=${fps}`;
-    case "pulse":
-      return `zoompan=z='1+0.1*sin(on/${fps}*2)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=${frames}:s=1080x1920:fps=${fps}`;
-    case "slide":
-      return `zoompan=z='1.05':x='(iw-iw/zoom)*on/${frames}':y='ih/2-(ih/zoom/2)':d=${frames}:s=1080x1920:fps=${fps}`;
-    case "twinkle":
-      return `zoompan=z='1+0.05*sin(on/${fps}*3)':x='iw/2-(iw/zoom/2)+cos(on/${fps}*2)*10':y='ih/2-(ih/zoom/2)+sin(on/${fps}*3)*10':d=${frames}:s=1080x1920:fps=${fps}`;
-    default:
-      return `zoompan=z='1.05':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=${frames}:s=1080x1920:fps=${fps}`;
-  }
-}
+const ACCENT_COLORS = [
+  "0xFFFFFF", "0xFFF8DC", "0xFFFACD", "0xFFE4E1", "0xE0FFFF",
+  "0xF0FFF0", "0xFFF0F5", "0xF5F5DC", "0xFFEFD5", "0xE6E6FA",
+];
 
 function hexToRgb(hex) {
   const h = hex.replace("0x", "");
@@ -76,19 +27,54 @@ function hexToRgb(hex) {
 function getContrastColor(hex) {
   const { r, g, b } = hexToRgb(hex);
   const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-  return luminance > 0.5 ? "0x333333" : "0xFFFFFF";
+  return luminance > 0.5 ? "black" : "white";
 }
 
-function runFfmpeg(cmd) {
-  return new Promise((resolve, reject) => {
-    cmd.on("end", resolve).on("error", (err) => reject(new Error(err.message || String(err))));
-    cmd.run();
-  });
+function escapeFfmpegText(text) {
+  return text
+    .replace(/\\/g, "\\\\")
+    .replace(/'/g, "\u2019")
+    .replace(/:/g, "\u2014")
+    .replace(/%/g, "%%");
+}
+
+function buildAnimatedFilter(bgColor, accentColor, textColor, duration, fps, sceneIndex) {
+  const w = 1080;
+  const h = 1920;
+  const shapeType = SHAPES[sceneIndex % SHAPES.length];
+
+  let drawShapes = "";
+
+  for (let j = 0; j < 5; j++) {
+    const startX = Math.floor(100 + Math.random() * (w - 200));
+    const startY = Math.floor(100 + Math.random() * (h - 400));
+    const size = 60 + Math.floor(Math.random() * 80);
+    const speed = 0.5 + Math.random() * 1.5;
+    const delay = j * 0.3;
+
+    const xExpr = `${startX}+sin((t-${delay})*${speed})*80`;
+    const yExpr = `${startY}+cos((t-${delay})*${speed * 0.7})*60`;
+
+    if (shapeType === "circle" || j % 3 === 0) {
+      drawShapes += `,drawbox=x=${xExpr}:y=${yExpr}:w=${size}:h=${size}:color=${accentColor}@0.4:t=fill`;
+    } else if (shapeType === "square" || j % 3 === 1) {
+      drawShapes += `,drawbox=x=${xExpr}:y=${yExpr}:w=${size}:h=${size}:color=${accentColor}@0.3:t=fill`;
+    } else {
+      drawShapes += `,drawbox=x=${xExpr}:y=${yExpr}:w=${size * 0.8}:h=${size * 0.8}:color=${accentColor}@0.25:t=fill`;
+    }
+  }
+
+  const centerCircleSize = 120 + Math.floor(Math.abs(Math.sin(sceneIndex * 1.5)) * 100);
+  drawShapes += `,drawbox=x=(w-${centerCircleSize})/2:y=(h-${centerCircleSize})/2:w=${centerCircleSize}:h=${centerCircleSize}:color=${accentColor}@0.5:t=fill`;
+  drawShapes += `,drawbox=x=(w-${centerCircleSize + 40})/2:y=(h-${centerCircleSize + 40})/2:w=${centerCircleSize + 40}:h=${centerCircleSize + 40}:color=${accentColor}@0.2:t=fill`;
+
+  const filter = `color=c=${bgColor}:s=${w}x${h}:d=${duration}:r=${fps}${drawShapes}`;
+  return filter;
 }
 
 /**
  * Renders animated scenes using ffmpeg.
- * Each scene gets a colorful animated background.
+ * Each scene gets a colorful background with floating shapes and motion.
  *
  * @param {{ scenes: {text: string, visualKeyword: string, animationType: string}[], durations: number[], workDir: string }} opts
  * @returns {Promise<string[]>} paths to rendered scene videos
@@ -101,22 +87,24 @@ export async function renderScenes({ scenes, durations, workDir }) {
     const duration = durations[i];
     const outPath = path.resolve(workDir, `anim_${i}.mp4`).replace(/\\/g, "/");
     const bgColor = COLORS[i % COLORS.length];
+    const accentColor = ACCENT_COLORS[i % ACCENT_COLORS.length];
     const fps = 30;
 
-    const filter = `color=c=${bgColor}:s=1080x1920:d=${duration}:r=${fps}`;
+    const filter = buildAnimatedFilter(bgColor, accentColor, "white", duration, fps, i);
 
     const cmd = [
       "ffmpeg -y",
       `-f lavfi -i "${filter}"`,
       `-t ${duration}`,
-      `-c:v libx264 -preset ultrafast -pix_fmt yuv420p`,
+      `-c:v libx264 -preset ultrafast -pix_fmt yuv420p -movflags +faststart`,
       `"${outPath}"`,
     ].join(" ");
 
     try {
       execSync(cmd, { stdio: "pipe" });
+      console.log(`    Scene ${i}: ${duration.toFixed(1)}s (${scene.visualKeyword})`);
     } catch (err) {
-      throw new Error(`ffmpeg scene ${i} failed: ${err.stderr?.toString() || err.message}`);
+      throw new Error(`ffmpeg scene ${i} failed: ${err.stderr?.toString()?.slice(-500) || err.message}`);
     }
 
     scenePaths.push(outPath);

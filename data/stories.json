@@ -12,8 +12,8 @@
     "topic": "The pig song - nursery rhyme about a pig",
     "category": "animal",
     "animalName": "pig",
-    "used": false,
-    "scheduledDate": null
+    "used": true,
+    "scheduledDate": "2026-08-31"
   },
   {
     "id": "rhyme_0002_mthtyqug_aqg8",
