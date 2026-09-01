@@ -3,6 +3,6 @@ node_modules/
 work/
 output/
 media/
-assets/music/kids/*.mp3
-assets/music/kids/*.wav
-assets/music/kids/*.m4a
+assets/music/kids/test-*.mp3
+assets/music/kids/test-*.wav
+assets/music/kids/test-*.m4a
