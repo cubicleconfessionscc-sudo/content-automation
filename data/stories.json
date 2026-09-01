@@ -20,8 +20,8 @@
     "topic": "The hen song - nursery rhyme about a hen",
     "category": "animal",
     "animalName": "hen",
-    "used": false,
-    "scheduledDate": null
+    "used": true,
+    "scheduledDate": "2026-09-01"
   },
   {
     "id": "rhyme_0003_mthtyqug_feaf",
