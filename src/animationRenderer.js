@@ -334,7 +334,7 @@ ${buildSceneBody({ scene, char, chrMarkup })}</html>`;
         `    [anim] Scene ${i}: ${duration.toFixed(1)}s (${scene.visualKeyword || "?"}) — host: ${char.name}`
       );
       const p = await renderHtmlVideo({ workDir, tag: `anim_${i}`, html, duration, browser });
-      const stat = fs.statSync(p.replace(/\//g, "\\"));
+      const stat = fs.statSync(p);
       console.log(`    [anim] Scene ${i}: Done (${(stat.size / 1024).toFixed(0)}KB)`);
       scenePaths.push(p);
     }
