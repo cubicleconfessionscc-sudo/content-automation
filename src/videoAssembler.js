@@ -172,7 +172,7 @@ export async function assembleVideo({
 
   validateFile(finalPath, "final video");
 
-  const finalStat = fs.statSync(finalPath.replace(/\//g, "\\"));
+  const finalStat = fs.statSync(finalPath);
   console.log(`    [assemble] === Final video: ${(finalStat.size / 1024 / 1024).toFixed(1)}MB ===`);
 
   return finalPath;
