@@ -2,8 +2,8 @@ import { execSync } from "child_process";
 import fs from "fs";
 import path from "path";
 
-function buildSrt(scenes, durations, outPath) {
-  let t = 0;
+function buildSrt(scenes, durations, outPath, offsetSec = 0) {
+  let t = offsetSec;
   let srt = "";
   scenes.forEach((scene, i) => {
     const start = formatSrtTime(t);
@@ -37,8 +37,16 @@ function validateFile(filePath, label) {
   return stat.size;
 }
 
+function probeDuration(filePath) {
+  const cmd = `ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${filePath}"`;
+  const out = execSync(cmd, { stdio: "pipe" }).toString().trim();
+  const sec = parseFloat(out);
+  if (!Number.isFinite(sec)) throw new Error(`[videoAssembler] Cannot probe duration: ${filePath}`);
+  return sec;
+}
+
 function runFfmpegCmd(cmdStr, label) {
-  console.log(`    [ffmpeg] ${label}: ${cmdStr.substring(0, 120)}...`);
+  console.log(`    [ffmpeg] ${label}: ${cmdStr.substring(0, 140)}...`);
   try {
     const output = execSync(cmdStr, { stdio: "pipe", timeout: 300000 });
     console.log(`    [ffmpeg] ${label}: Success`);
@@ -51,21 +59,37 @@ function runFfmpegCmd(cmdStr, label) {
 }
 
 /**
- * Assembles animated scenes + narration + music into final video.
+ * Assembles intro + animated scenes + outro, mixes narration + music + jingle.
  * Full validation and logging at every step.
  */
-export async function assembleVideo({ clipPaths, durations, scenes, narrationPath, workDir, musicPath }) {
+export async function assembleVideo({
+  clipPaths,
+  durations,
+  scenes,
+  narrationPath,
+  workDir,
+  musicPath,
+  introPath,
+  outroPath,
+  jinglePath,
+}) {
   console.log("\n    [assemble] === Starting video assembly ===");
 
   console.log("    [assemble] Validating inputs:");
   console.log(`    [assemble]   Scenes: ${clipPaths.length}`);
   console.log(`    [assemble]   Durations: ${durations.map((d) => d.toFixed(1) + "s").join(", ")}`);
-  console.log(`    [assemble]   Total: ${durations.reduce((a, b) => a + b, 0).toFixed(1)}s`);
+  console.log(`    [assemble]   Intro: ${introPath ? "yes" : "no"}, Outro: ${outroPath ? "yes" : "no"}, Jingle: ${jinglePath ? "yes" : "no"}`);
+
+  const introSec = introPath ? probeDuration(introPath) : 0;
+  const outroSec = outroPath ? probeDuration(outroPath) : 0;
+  const scenesSec = durations.reduce((a, b) => a + b, 0);
+  const total = introSec + scenesSec + outroSec;
+  console.log(`    [assemble]   Total: ${total.toFixed(1)}s (intro ${introSec.toFixed(1)} + scenes ${scenesSec.toFixed(1)} + outro ${outroSec.toFixed(1)})`);
 
   for (let i = 0; i < clipPaths.length; i++) {
     validateFile(clipPaths[i], `scene_${i}`);
   }
-  const narrationSize = validateFile(narrationPath, "narration");
+  validateFile(narrationPath, "narration");
 
   if (musicPath && fs.existsSync(musicPath)) {
     validateFile(musicPath, "music");
@@ -73,55 +97,78 @@ export async function assembleVideo({ clipPaths, durations, scenes, narrationPat
     console.log("    [validate] music: Not provided (skipping music mix)");
     musicPath = null;
   }
+  if (jinglePath && !fs.existsSync(jinglePath)) {
+    console.log("    [validate] jingle: not found, skipping jingle mix");
+    jinglePath = null;
+  }
 
   const srtPath = path.resolve(workDir, "captions.srt").replace(/\\/g, "/");
-  buildSrt(scenes, durations, srtPath);
-  console.log(`    [assemble] SRT captions: ${srtPath}`);
+  buildSrt(scenes, durations, srtPath, introSec);
+  console.log(`    [assemble] SRT captions (offset ${introSec}s): ${srtPath}`);
 
   const concatPath = path.resolve(workDir, "concat.txt").replace(/\\/g, "/");
-  const concatLines = clipPaths.map((p) => `file '${p}'`).join("\n");
-  fs.writeFileSync(concatPath, concatLines);
+  const parts = [];
+  if (introPath) parts.push(introPath);
+  parts.push(...clipPaths);
+  if (outroPath) parts.push(outroPath);
+  fs.writeFileSync(concatPath, parts.map((p) => `file '${p}'`).join("\n"));
 
   const stitchedPath = path.resolve(workDir, "stitched.mp4").replace(/\\/g, "/");
   runFfmpegCmd(
     `ffmpeg -y -f concat -safe 0 -i "${concatPath}" -c copy "${stitchedPath}"`,
-    "concat scenes"
+    "concat intro+scenes+outro"
   );
   validateFile(stitchedPath, "stitched");
 
   const finalPath = path.resolve(workDir, "final.mp4").replace(/\\/g, "/");
-  const totalDuration = durations.reduce((a, b) => a + b, 0);
+  const introMs = Math.round(introSec * 1000);
+  const outroStartMs = Math.round((total - outroSec) * 1000);
+
+  const filters = [];
+  const inputs = [`-i "${stitchedPath}"`, `-i "${narrationPath}"`];
+  const inputIdx = { video: 0, narr: 1 };
+  let nextIdx = 2;
+
+  filters.push(`[${inputIdx.narr}:a]volume=1.2,adelay=all=1:delays=${introMs}[narr]`);
 
   if (musicPath) {
-    const cmd = [
-      "ffmpeg -y",
-      `-i "${stitchedPath}"`,
-      `-i "${narrationPath}"`,
-      `-i "${musicPath}"`,
-      `-filter_complex`,
-      `"[1:a]volume=1.2[narr];[2:a]aloop=loop=-1:size=2e+09,volume=0.2,afade=t=in:d=2,afade=t=out:st=${totalDuration - 2}:d=2,atrim=0:${totalDuration}[music];[narr][music]amix=inputs=2:duration=first:dropout_transition=3[aout]"`,
-      `-map "0:v" -map "[aout]"`,
-      `-c:v copy -c:a aac -b:a 192k`,
-      `-t ${totalDuration}`,
-      `-movflags +faststart`,
-      `"${finalPath}"`,
-    ].join(" ");
-
-    runFfmpegCmd(cmd, "mix narration + music");
-  } else {
-    const cmd = [
-      "ffmpeg -y",
-      `-i "${stitchedPath}"`,
-      `-i "${narrationPath}"`,
-      `-map "0:v" -map "1:a"`,
-      `-c:v copy -c:a aac -b:a 192k`,
-      `-shortest`,
-      `-movflags +faststart`,
-      `"${finalPath}"`,
-    ].join(" ");
-
-    runFfmpegCmd(cmd, "mix narration only");
+    inputs.push(`-i "${musicPath}"`);
+    const idx = nextIdx++;
+    filters.push(
+      `[${idx}:a]volume=0.2,afade=t=in:d=1.5,afade=t=out:st=${(total - 1).toFixed(2)}:d=1,atrim=0:${total.toFixed(2)}[music]`
+    );
   }
+
+  if (jinglePath) {
+    inputs.push(`-i "${jinglePath}"`);
+    const idx = nextIdx++;
+    filters.push(
+      `[${idx}:a]asplit=2[ja][jb];[ja]volume=0.9,adelay=all=1:delays=0[jin];[jb]volume=0.9,adelay=all=1:delays=${outroStartMs}[jout];[jin][jout]amix=inputs=2:duration=longest:dropout_transition=0[jmix]`
+    );
+  }
+
+  const refs = ["[narr]"];
+  if (musicPath) refs.push("[music]");
+  if (jinglePath) refs.push("[jmix]");
+  if (refs.length === 1) {
+    filters.push(`[narr]atrim=0:${total.toFixed(2)}[aout]`);
+  } else {
+    filters.push(`${refs.join("")}amix=inputs=${refs.length}:duration=longest:dropout_transition=0[aout]`);
+  }
+
+  const filterComplex = filters.join(";");
+  const cmd = [
+    "ffmpeg -y",
+    ...inputs,
+    `-filter_complex "${filterComplex}"`,
+    `-map "0:v" -map "[aout]"`,
+    `-c:v copy -c:a aac -b:a 192k`,
+    `-t ${total.toFixed(2)}`,
+    `-movflags +faststart`,
+    `"${finalPath}"`,
+  ].join(" ");
+
+  runFfmpegCmd(cmd, "mix narration + music + jingle");
 
   validateFile(finalPath, "final video");
 

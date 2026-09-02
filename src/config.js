@@ -29,6 +29,7 @@ export const config = {
     businessAccountId: process.env.IG_BUSINESS_ACCOUNT_ID || "",
   },
   publicUploadWebhook: process.env.PUBLIC_UPLOAD_WEBHOOK || "",
+  channelName: process.env.CHANNEL_NAME || "Cubicle Confessions",
   paths: {
     work: path.join(__dirname, "..", "work"),
   },

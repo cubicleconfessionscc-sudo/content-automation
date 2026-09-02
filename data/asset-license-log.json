@@ -37,5 +37,74 @@
         "timestamp": "2026-09-01T07:27:33.963Z"
       }
     ]
+  },
+  {
+    "videoId": "rhyme_0003_mtj7a8ea_gq1l",
+    "timestamp": "2026-09-01T22:11:17.001Z",
+    "title": "The Little Red Rooster Song",
+    "passed": true,
+    "errors": [],
+    "assets": [
+      {
+        "type": "script",
+        "source": "AI-generated",
+        "generator": "Google Gemini 3.6-flash",
+        "license": "AI-generated original content",
+        "timestamp": "2026-09-01T22:11:16.542Z",
+        "note": "Original lyrics for \"The Little Red Rooster Song\""
+      },
+      {
+        "type": "narration",
+        "source": "AI-generated speech",
+        "generator": "Microsoft Edge TTS (Python edge-tts)",
+        "license": "Microsoft Edge TTS free tier - non-commercial and commercial use allowed",
+        "voice": "en-US-AriaNeural",
+        "timestamp": "2026-09-01T22:11:16.929Z"
+      },
+      {
+        "type": "animation",
+        "source": "AI-generated",
+        "generator": "Puppeteer + CSS animations",
+        "license": "Original code-generated animation",
+        "timestamp": "2026-09-01T22:11:16.929Z"
+      },
+      {
+        "type": "animation-cast-scenes",
+        "source": "Original Sky Friends cast",
+        "characters": [
+          "lunie",
+          "sunny"
+        ],
+        "license": "Original character IP per docs/character-bible.md",
+        "timestamp": "2026-09-01T22:11:16.930Z"
+      },
+      {
+        "type": "animation-cast-intro-outro",
+        "source": "Original Sky Friends cast",
+        "characters": [
+          "sunny",
+          "cloudie",
+          "stella",
+          "lunie",
+          "roy"
+        ],
+        "license": "Original character IP per docs/character-bible.md",
+        "timestamp": "2026-09-01T22:11:16.934Z"
+      },
+      {
+        "type": "background-music",
+        "source": "Unknown",
+        "path": "D:\\Bocketube\\content-automation\\assets\\music\\kids\\upbeat_c_major.mp3",
+        "license": "Original AI-generated (sine synthesis)",
+        "timestamp": "2026-09-01T22:11:16.935Z"
+      },
+      {
+        "type": "channel-jingle",
+        "source": "Unknown",
+        "path": "D:\\Bocketube\\content-automation\\assets\\audio\\jingle.mp3",
+        "license": "Original AI-generated (sine synthesis)",
+        "timestamp": "2026-09-01T22:11:16.935Z"
+      }
+    ]
   }
 ]

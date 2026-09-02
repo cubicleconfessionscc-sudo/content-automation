@@ -8,13 +8,16 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 import { pickNextStory, markStoryUsed, remainingStories } from "./storyPicker.js";
 import { generateScript } from "./scriptGenerator.js";
 import { generateNarration, estimateSceneDurations } from "./ttsGenerator.js";
-import { renderScenes } from "./animationRenderer.js";
+import { renderScenes, renderIntroOutro } from "./animationRenderer.js";
 import { assembleVideo } from "./videoAssembler.js";
 import { generateMetadata } from "./metadataGenerator.js";
 import { uploadToYouTube } from "./youtubeUploader.js";
 import { copyrightCheck } from "./copyrightCheck.js";
+import { generateJingle } from "./jingleGenerator.js";
 
 const DAILY_LIMIT = parseInt(process.env.DAILY_UPLOAD_LIMIT || "1", 10);
+const DRY_RUN = process.env.DRY_RUN === "1" || process.env.DRY_RUN === "true";
+const JINGLE_PATH = path.join(__dirname, "..", "assets", "audio", "jingle.mp3");
 
 function logFileStats(filePath, label) {
   if (!fs.existsSync(filePath)) {
@@ -29,9 +32,16 @@ function logFileStats(filePath, label) {
 async function main() {
   console.log("=".repeat(60));
   console.log(`[batch] Daily Baby Rhyme Pipeline`);
-  console.log(`[batch] Upload limit: ${DAILY_LIMIT}`);
+  console.log(`[batch] Upload limit: ${DAILY_LIMIT}${DRY_RUN ? " (DRY RUN - no upload)" : ""}`);
   console.log(`[batch] Stories remaining: ${remainingStories()}`);
   console.log("=".repeat(60));
+
+  if (!fs.existsSync(JINGLE_PATH)) {
+    console.log("[batch] Channel jingle not found - generating...");
+    generateJingle();
+  } else {
+    console.log(`[batch] Jingle: ${JINGLE_PATH}`);
+  }
 
   let uploaded = 0;
 
@@ -78,7 +88,7 @@ async function main() {
         console.log("    [music] No background music found (narration only)");
       }
 
-      console.log("\n  [4/7] Rendering animated scenes (Puppeteer)...");
+      console.log("\n  [4/7] Rendering animated scenes + intro/outro (Puppeteer)...");
       const scenePaths = await renderScenes({
         scenes: script.scenes,
         durations,
@@ -89,6 +99,14 @@ async function main() {
         logFileStats(scenePaths[i], `scene_${i}`);
       }
 
+      const { introPath, outroPath, introDuration, outroDuration } = await renderIntroOutro({
+        workDir,
+        channelName: config.channelName,
+      });
+      logFileStats(introPath, "intro");
+      logFileStats(outroPath, "outro");
+      console.log(`    Intro/outro durations: ${introDuration}s / ${outroDuration}s`);
+
       console.log("\n  [5/7] Copyright safety check...");
       const copyrightResult = copyrightCheck({
         videoId: story.id,
@@ -96,6 +114,7 @@ async function main() {
         script,
         narrationPath,
         musicPath: musicPath || undefined,
+        jinglePath: JINGLE_PATH,
       });
 
       if (!copyrightResult.passed) {
@@ -114,6 +133,9 @@ async function main() {
         narrationPath,
         workDir,
         musicPath: musicPath || undefined,
+        introPath,
+        outroPath,
+        jinglePath: JINGLE_PATH,
       });
       logFileStats(finalPath, "final.mp4");
 
@@ -122,6 +144,12 @@ async function main() {
       console.log(`    YouTube title: "${metadata.youtubeTitle}"`);
       console.log(`    Tags: ${metadata.youtubeTags?.slice(0, 5).join(", ")}...`);
       fs.writeFileSync(path.join(workDir, "metadata.json"), JSON.stringify(metadata, null, 2));
+
+      if (DRY_RUN) {
+        console.log("  [DRY RUN] Upload skipped. Story NOT marked as used.");
+        console.log(`  [DRY RUN] If this were live it would upload to ${config.youtube.channelId}`);
+        break;
+      }
 
       console.log("  [upload] Uploading to YouTube...");
       const { url, videoId } = await uploadToYouTube({

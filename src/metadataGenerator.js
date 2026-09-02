@@ -1,7 +1,4 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
-import { config } from "./config.js";
-
-const genAI = new GoogleGenerativeAI(config.geminiApiKey);
+import { generateContentWithRetry } from "./geminiHelpers.js";
 
 /**
  * Generates YouTube-optimized metadata for kids baby rhyme content.
@@ -38,10 +35,6 @@ Rules:
 - All content must be COPPA compliant — no collection of personal data from kids
 - Tags should include: nursery rhymes, kids songs, baby songs, toddler, educational, original, [topic-specific tags]`;
 
-  const model = genAI.getGenerativeModel({ model: "gemini-3.6-flash" });
-  const result = await model.generateContent(prompt);
-  const raw = result.response.text().trim();
-
-  const cleaned = raw.replace(/^```json\s*|\s*```$/g, "");
-  return JSON.parse(cleaned);
+  const { data } = await generateContentWithRetry({ prompt, json: true });
+  return data;
 }

@@ -1,7 +1,4 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
-import { config } from "./config.js";
-
-const genAI = new GoogleGenerativeAI(config.geminiApiKey);
+import { generateContentWithRetry } from "./geminiHelpers.js";
 
 /**
  * Generates an ORIGINAL baby rhyme lyric with proper AABB/ABCB rhyme scheme.
@@ -58,10 +55,6 @@ Chorus line three
 Break into 4-6 scenes. Each scene = one verse or chorus.
 The visualKeyword should describe what appears on screen (e.g., "bouncing cow", "spinning star").`;
 
-  const model = genAI.getGenerativeModel({ model: "gemini-3.6-flash" });
-  const result = await model.generateContent(prompt);
-  const raw = result.response.text().trim();
-
-  const cleaned = raw.replace(/^```json\s*|\s*```$/g, "");
-  return JSON.parse(cleaned);
+  const { data } = await generateContentWithRetry({ prompt, json: true });
+  return data;
 }
