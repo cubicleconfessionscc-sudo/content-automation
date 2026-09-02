@@ -2,9 +2,8 @@ name: Daily Baby Rhyme Upload
 
 on:
   schedule:
-    # Runs at 10:00 UTC every day — change to your preferred time
     - cron: '0 10 * * *'
-  workflow_dispatch: # allow manual trigger from Actions tab
+  workflow_dispatch:
 
 jobs:
   upload:
@@ -35,14 +34,15 @@ jobs:
         env:
           PUPPETEER_SKIP_DOWNLOAD: 'true'
 
-      - name: Install Google Chrome (stable)
+      - name: Install Google Chrome
         run: |
-          sudo apt-get update
-          sudo apt-get install -y wget gnupg
-          wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | sudo gpg --dearmor -o /usr/share/keyrings/google-chrome.gpg
-          echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google-chrome.list
+          curl -fsSL https://dl-ssl.google.com/linux/linux_signing_key.pub | sudo gpg --batch --dearmor -o /usr/share/keyrings/google-chrome.gpg
+          echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google-chrome.list > /dev/null
           sudo apt-get update
           sudo apt-get install -y google-chrome-stable
+
+      - name: Verify Chrome
+        run: google-chrome-stable --version
 
       - name: Run daily batch
         env:
