@@ -310,6 +310,7 @@ export async function renderScenes({ scenes, durations, workDir }) {
 
   const browser = await puppeteer.launch({
     headless: "new",
+    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
     args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu"],
   });
 
@@ -371,6 +372,7 @@ ${buildOutroBody({ channelName: safeName, chrMarkupById })}</html>`;
   console.log(`    [anim] Rendering intro (${INTRO_DURATION}s)…`);
   const browser = await puppeteer.launch({
     headless: "new",
+    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
     args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu"],
   });
   let introPath;
